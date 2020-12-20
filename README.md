@@ -1,6 +1,6 @@
 ## About
 
-Uploaded Image Auto-Resizer is a plugin for [MyBB](https://mybb.com/) 1.8. It auto-resizes uploaded images so that they do not exceed a stipulated maximum width and height.
+Image Auto-Resizer is a plugin for [MyBB](https://mybb.com/) 1.8. It auto-resizes uploaded images so that they do not exceed a stipulated maximum width and height.
 
 ## Installing
 
@@ -14,13 +14,13 @@ Uploaded Image Auto-Resizer is a plugin for [MyBB](https://mybb.com/) 1.8. It au
 
 3. *Install via the ACP*.
 
-   In a web browser, open the "Plugins" module in the ACP of your MyBB installation. You should see "Uploaded Image Auto-Resizer" under "Inactive Plugins". Click "Install & Activate" next to it. You should then see the plugin listed under "Active Plugins" on the reloaded page.
+   In a web browser, open the "Plugins" module in the ACP of your MyBB installation. You should see "Image Auto-Resizer" under "Inactive Plugins". Click "Install & Activate" next to it. You should then see the plugin listed under "Active Plugins" on the reloaded page.
 
 ## Upgrading
 
 1. *Deactivate*.
 
-   In a web browser, open the "Plugins" module in the ACP of your MyBB installation and click "Deactivate" beside the "Uploaded Image Auto-Resizer" plugin.
+   In a web browser, open the "Plugins" module in the ACP of your MyBB installation and click "Deactivate" beside the "Image Auto-Resizer" plugin.
 
 2. *Download and Copy files*.
 
@@ -32,12 +32,12 @@ Uploaded Image Auto-Resizer is a plugin for [MyBB](https://mybb.com/) 1.8. It au
 
 ## Resizing preexisting uploaded images
 
-Uploaded Image Auto-Resizer resizes images upon their being uploaded. To resize preexisting uploaded images, click "Go" beside _Tools & Maintenance_ => _Recount & Rebuild_ => _Resize Uploaded Images_ in the ACP. You probably also want to do the same if you change the plugin's settings to specify either a smaller width or a smaller height than when this _Resize Uploaded Images_ recount/rebuild was last run.
+Image Auto-Resizer resizes images upon their being uploaded. To resize preexisting uploaded images, click "Go" beside _Tools & Maintenance_ => _Recount & Rebuild_ => _Resize Uploaded Images_ in the ACP. You probably also want to do the same if you change the plugin's settings to specify either a smaller width or a smaller height than when this _Resize Uploaded Images_ recount/rebuild was last run.
 
 ## Licence
 
-Uploaded Image Auto-Resizer is licensed under the GPL version 3.
+Image Auto-Resizer is licensed under the GPL version 3.
 
 ## Maintainers and credits
 
-Uploaded Image Auto-Resizer was originally authored by [Laird](https://github.com/lairdshaw/) to be maintained by the unofficial [MyBB Group](https://mybb.group/), as inspired by [azalea4va](https://community.mybb.com/user-119243.html) in the MyBB Community Forums thread [Resize image attachments](https://community.mybb.com/thread-217961.html), and as suggested by [Eldenroot](https://community.mybb.com/user-84065.html) after he read that thread.
+Image Auto-Resizer was originally authored by [Laird](https://github.com/lairdshaw/) to be maintained by the unofficial [MyBB Group](https://mybb.group/), as inspired by [azalea4va](https://community.mybb.com/user-119243.html) in the MyBB Community Forums thread [Resize image attachments](https://community.mybb.com/thread-217961.html), and as suggested by [Eldenroot](https://community.mybb.com/user-84065.html) after he read that thread.
