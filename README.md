@@ -10,7 +10,7 @@ Image Auto-Resizer is a plugin for [MyBB](https://mybb.com/) 1.8. It auto-resize
 
 2. *Copy files*.
 
-   Extract the files in that archive to a temporary location, and then copy the files in "root" into the root of your MyBB installation. That is to say that "root/auto_resizer.php" should be copied to your MyBB root directory, and "root/inc/languages/english/admin/auto_resizer.lang.php" should be copied to your MyBB root's "inc/languages/english/admin" directory.
+   Extract the files in that archive to a temporary location, and then copy the files in "root" into the root of your MyBB installation. That is to say that `root/inc/plugins/auto_resizer.php` should be copied to your MyBB root directory's `inc/plugins/` directory, and `root/inc/languages/english/admin/auto_resizer.lang.php` should be copied to your MyBB root's `inc/languages/english/admin` directory.
 
 3. *Install via the ACP*.
 
