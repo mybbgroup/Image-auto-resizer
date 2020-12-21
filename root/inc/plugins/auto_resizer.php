@@ -160,13 +160,13 @@ function autorsz_hookin__admin_tools_recount_rebuild() {
 			}
 
 			if (!$mybb->get_input('num_autorsz_imgs', MyBB::INPUT_INT)) {
-				$mybb->input['num_autorsz_imgs'] = 200;
+				$mybb->input['num_autorsz_imgs'] = 40;
 			}
 
 			$page = $mybb->get_input('page', MyBB::INPUT_INT);
 			$per_page = $mybb->get_input('num_autorsz_imgs', MyBB::INPUT_INT);
 			if ($per_page <= 0) {
-				$per_page = 200;
+				$per_page = 40;
 			}
 			$start = ($page-1) * $per_page;
 			$end = $start + $per_page;
@@ -192,7 +192,7 @@ function autorsz_hookin__admin_tools_recount_rebuild_output_list() {
 	$lang->load('auto_resizer');
 
 	$form_container->output_cell("<label>{$lang->autorsz_rebuild_lbl}</label><div class=\"description\">{$lang->autorsz_rebuild_do_desc}</div>");
-	$form_container->output_cell($form->generate_numeric_field('num_autorsz_imgs', 200, array('style' => 'width: 150px;', 'min' => 0)));
+	$form_container->output_cell($form->generate_numeric_field('num_autorsz_imgs', 40, array('style' => 'width: 150px;', 'min' => 0)));
 	$form_container->output_cell($form->generate_submit_button($lang->go, array('name' => 'do_autorsz_imgs')));
 	$form_container->construct_row();
 }
