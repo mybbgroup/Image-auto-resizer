@@ -37,9 +37,9 @@ function auto_resizer_info() {
 	$ret = array(
 		'name'          => $lang->autorsz_name,
 		'description'   => $lang->sprintf($lang->autorsz_desc, $gid),
-		'website'       => '',
-		'author'        => 'MyBB Group',
-		'authorsite'    => 'https://mybb.group/',
+		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
+		'author'        => 'Laird as a member of the unofficial MyBB Group',
+		'authorsite'    => 'https://mybb.group/User-Laird',
 		'version'       => '1.0.2 dev',
 		// Constructed by converting each digit of 'version' above into two digits (zero-padded if necessary),
 		// then concatenating them, then removing any leading zero(es) to avoid the value being interpreted as octal.
