@@ -40,10 +40,10 @@ function auto_resizer_info() {
 		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
 		'author'        => 'Laird as a member of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/User-Laird',
-		'version'       => '1.0.2 dev',
+		'version'       => '1.0.3-prerelease',
 		// Constructed by converting each digit of 'version' above into two digits (zero-padded if necessary),
 		// then concatenating them, then removing any leading zero(es) to avoid the value being interpreted as octal.
-		'version_code'  => '10002',
+		'version_code'  => '10003',
 		'guid'          => '',
 		'codename'      => 'auto_resizer',
 		'compatibility' => '18*'
@@ -214,6 +214,29 @@ function autorsz_hookin__upload_attachment_thumb_start($attacharray) {
 	return $attacharray;
 }
 
+function autorsz_fix_image_orientation($filepath) {
+	$imgsz = getimagesize($filepath);
+	if ($imgsz) {
+		$create_func = '';
+		$imgtype = image_type_to_extension($imgsz[2], /*$include_dot*/ false);
+		if ($imgtype) {
+			if ($imgtype == 'jpg') {
+				$imgtype = 'jpeg';
+			}
+			$create_func = 'imagecreatefrom'.$imgtype;
+			$save_func = 'image'.$imgtype;
+			if (@function_exists($create_func) && @function_exists($save_func)) {
+				$image = @$create_func($filepath);
+				// Based on https://stackoverflow.com/a/13963783
+				$image = imagerotate($image, array_values([0, 0, 0, 180, 0, 0, -90, 0, 90])[@exif_read_data($filepath)['Orientation'] ?: 0], 0);
+				if ($image) {
+					$save_func($filepath);
+				}
+			}
+		}
+	}
+}
+
 function autorsz_resize_file($attachname) {
 	global $mybb;
 	$prefix = 'autorsz_';
@@ -223,6 +246,7 @@ function autorsz_resize_file($attachname) {
 	$filename_rsz = str_replace('.attach', '.resized', $attachname);
 	$filepath_org = $uploadspath.'/'.$attachname;
 	if (file_exists($filepath_org)) {
+		autorsz_fix_image_orientation($filepath_org);
 		require_once MYBB_ROOT.'inc/functions_image.php';
 		$resized = generate_thumbnail($filepath_org, $uploadspath, $filename_rsz, $mybb->settings[$prefix.'max_height'], $mybb->settings[$prefix.'max_width']);
 		if ($resized['filename']) {
