@@ -215,6 +215,10 @@ function autorsz_hookin__upload_attachment_thumb_start($attacharray) {
 }
 
 function autorsz_fix_image_orientation($filepath) {
+	if (!function_exists('exif_read_data')) {
+		return;
+	}
+
 	$imgsz = getimagesize($filepath);
 	if ($imgsz) {
 		$imgtype = image_type_to_extension($imgsz[2], /*$include_dot = */false);
