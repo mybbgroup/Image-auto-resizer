@@ -217,8 +217,7 @@ function autorsz_hookin__upload_attachment_thumb_start($attacharray) {
 function autorsz_fix_image_orientation($filepath) {
 	$imgsz = getimagesize($filepath);
 	if ($imgsz) {
-		$create_func = '';
-		$imgtype = image_type_to_extension($imgsz[2], /*$include_dot*/ false);
+		$imgtype = image_type_to_extension($imgsz[2], /*$include_dot = */false);
 		if ($imgtype) {
 			if ($imgtype == 'jpg') {
 				$imgtype = 'jpeg';
@@ -226,11 +225,16 @@ function autorsz_fix_image_orientation($filepath) {
 			$create_func = 'imagecreatefrom'.$imgtype;
 			$save_func = 'image'.$imgtype;
 			if (@function_exists($create_func) && @function_exists($save_func)) {
-				$image = @$create_func($filepath);
-				// Based on https://stackoverflow.com/a/13963783
-				$image = imagerotate($image, array_values([0, 0, 0, 180, 0, 0, -90, 0, 90])[@exif_read_data($filepath)['Orientation'] ?: 0], 0);
-				if ($image) {
-					$save_func($filepath);
+				if (($image = @$create_func($filepath))) {
+					// Based on https://stackoverflow.com/a/13963783
+					$exif_data = @exif_read_data($filepath);
+					if (isset($exif_data['Orientation'])) {
+						$image = imagerotate($image, array_values([0, 0, 0, 180, 0, 0, -90, 0, 90])[$exif_data['Orientation']], 0);
+						if ($image) {
+							$save_func($filepath);
+							imagedestroy($image);
+						}
+					}
 				}
 			}
 		}
