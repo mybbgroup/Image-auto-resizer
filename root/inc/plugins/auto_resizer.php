@@ -40,7 +40,7 @@ function auto_resizer_info() {
 		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
 		'author'        => 'Laird as a member of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/User-Laird',
-		'version'       => '1.0.3-prerelease',
+		'version'       => '1.0.3-prerelease-3',
 		// Constructed by converting each digit of 'version' above into two digits (zero-padded if necessary),
 		// then concatenating them, then removing any leading zero(es) to avoid the value being interpreted as octal.
 		'version_code'  => '10003',
@@ -235,7 +235,7 @@ function autorsz_fix_image_orientation($filepath) {
 					if (isset($exif_data['Orientation'])) {
 						$image = imagerotate($image, array_values([0, 0, 0, 180, 0, 0, -90, 0, 90])[$exif_data['Orientation']], 0);
 						if ($image) {
-							$save_func($filepath);
+							$save_func($image, $filepath);
 							imagedestroy($image);
 						}
 					}
