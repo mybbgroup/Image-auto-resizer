@@ -40,7 +40,7 @@ function auto_resizer_info() {
 		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
 		'author'        => 'Laird as a member of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/User-Laird',
-		'version'       => '1.0.3-prerelease-3',
+		'version'       => '1.0.3',
 		// Constructed by converting each digit of 'version' above into two digits (zero-padded if necessary),
 		// then concatenating them, then removing any leading zero(es) to avoid the value being interpreted as octal.
 		'version_code'  => '10003',
@@ -48,6 +48,10 @@ function auto_resizer_info() {
 		'codename'      => 'auto_resizer',
 		'compatibility' => '18*'
 	);
+
+	if (!function_exists('exif_read_data')) {
+		$ret['description'] .= '<ul><li style="list-style-image: url(styles/default/images/icons/warning.png);">'.$lang->autorsz_no_exif.'</li></ul>';
+	}
 
 	return $ret;
 }

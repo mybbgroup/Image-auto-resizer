@@ -4,6 +4,9 @@
 $l['autorsz_name'                    ] = 'Image Auto-Resizer';
 $l['autorsz_desc'                    ] = 'Automatically resizes uploaded images to fit within configurable width and height limits.<br /><br />After plugin installation followed by configuration of maximum width and height in its <a href="index.php?module=config-settings&amp;action=change&amp;gid={1}">settings</a>, preexisting uploaded images can be resized by clicking "Go" beside <em>Tools &amp; Maintenance</em> => <em><a href="index.php?module=tools-recount_rebuild">Recount &amp; Rebuild</a></em> => <em>Resize Uploaded Images</em> in the ACP.<br /><br /><em>Credits:</em> Inspired by <a href="https://community.mybb.com/user-119243.html">azalea4va</a> in the MyBB Community Forums thread <a href="https://community.mybb.com/thread-217961.html">Resize image attachments</a>. Suggested by <a href="https://community.mybb.com/user-84065.html">Eldenroot</a> after he read that thread.<br />';
 
+// Warning message.
+$l['autorsz_no_exif'                 ] = 'The exif_read_data() function was not found. Some images might be rotated on resizing. The most likely solution to this problem is to enable PHP\'s <a href="https://www.php.net/manual/en/book.exif.php">exif</a> extension on your server.';
+
 // For the plugin's settings in the ACP.
 $l['autorsz_settings_title'          ] = 'Image Auto-Resizer Settings';
 $l['autorsz_settings_desc'           ] = 'Settings to customise the Image Auto-Resizer plugin';
