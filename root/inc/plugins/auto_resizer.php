@@ -24,7 +24,10 @@ if (!defined('IN_MYBB')) {
 if (defined('IN_ADMINCP')) {
 	$plugins->add_hook('admin_tools_recount_rebuild'            , 'autorsz_hookin__admin_tools_recount_rebuild'            );
 	$plugins->add_hook('admin_tools_recount_rebuild_output_list', 'autorsz_hookin__admin_tools_recount_rebuild_output_list');
-} else	$plugins->add_hook('upload_attachment_thumb_start'          , 'autorsz_hookin__upload_attachment_thumb_start'          );
+} else {
+	$plugins->add_hook('attachment_end'                         , 'autorsz_hookin__attachment_end'                         );
+	$plugins->add_hook('upload_attachment_thumb_start'          , 'autorsz_hookin__upload_attachment_thumb_start'          );
+}
 
 function auto_resizer_info() {
 	global $lang, $db;
@@ -40,10 +43,10 @@ function auto_resizer_info() {
 		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
 		'author'        => 'Laird as a member of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/User-Laird',
-		'version'       => '1.0.3',
+		'version'       => '1.0.4',
 		// Constructed by converting each digit of 'version' above into two digits (zero-padded if necessary),
 		// then concatenating them, then removing any leading zero(es) to avoid the value being interpreted as octal.
-		'version_code'  => '10003',
+		'version_code'  => '10004',
 		'guid'          => '',
 		'codename'      => 'auto_resizer',
 		'compatibility' => '18*'
@@ -220,9 +223,11 @@ function autorsz_hookin__upload_attachment_thumb_start($attacharray) {
 
 function autorsz_fix_image_orientation($filepath) {
 	if (!function_exists('exif_read_data')) {
-		return;
+		return false;
 	}
 
+	$ret = false;
+	$filepath_rot = str_replace('.attach', '.rotated', $filepath);
 	$imgsz = getimagesize($filepath);
 	if ($imgsz) {
 		$imgtype = image_type_to_extension($imgsz[2], /*$include_dot = */false);
@@ -234,40 +239,88 @@ function autorsz_fix_image_orientation($filepath) {
 			$save_func = 'image'.$imgtype;
 			if (@function_exists($create_func) && @function_exists($save_func)) {
 				if (($image = @$create_func($filepath))) {
-					// Based on https://stackoverflow.com/a/13963783
+					// Inspired by https://stackoverflow.com/a/13963783
 					$exif_data = @exif_read_data($filepath);
-					if (isset($exif_data['Orientation'])) {
-						$image = imagerotate($image, array_values([0, 0, 0, 180, 0, 0, -90, 0, 90])[$exif_data['Orientation']], 0);
-						if ($image) {
-							$save_func($image, $filepath);
-							imagedestroy($image);
+					if (isset($exif_data['Orientation']) && $exif_data['Orientation'] > 1) {
+						$flip_type = array_values([0, 0, IMG_FLIP_HORIZONTAL,   0, IMG_FLIP_VERTICAL, IMG_FLIP_HORIZONTAL,   0, IMG_FLIP_HORIZONTAL,  0])[$exif_data['Orientation']];
+						$rot_angle = array_values([0, 0,                   0, 180,                 0,                  90, -90,                 -90, 90])[$exif_data['Orientation']];
+						$flipped = false;
+						if ($flip_type != 0) {
+							$flipped = imageflip($image, $flip_type);
+						}
+						if ($rot_angle != 0) {
+							$rot_image = imagerotate($image, $rot_angle, 0);
+							if ($rot_image) {
+								if ($save_func($rot_image, $filepath_rot)) {
+									if (!@rename($filepath_rot, $filepath)) {
+										@unlink($filepath_rot);
+									} else {
+										clearstatcache();
+										$ret = filesize($filepath);
+									}
+								}
+								imagedestroy($rot_image);
+							}
+						} else if ($flipped) {
+							if ($save_func($image, $filepath_rot)) {
+								if (!@rename($filepath_rot, $filepath)) {
+									@unlink($filepath_rot);
+								} else {
+									clearstatcache();
+									$ret = filesize($filepath);
+								}
+							}
 						}
 					}
+					imagedestroy($image);
 				}
 			}
 		}
 	}
+
+	return $ret;
 }
 
 function autorsz_resize_file($attachname) {
 	global $mybb;
 	$prefix = 'autorsz_';
 
-	$uploadspath = (defined('IN_ADMINCP') ? '../' : '').$mybb->settings['uploadspath'];
+	$uploadspath = mk_path_abs($mybb->settings['uploadspath']);
 	$ret = false;
 	$filename_rsz = str_replace('.attach', '.resized', $attachname);
 	$filepath_org = $uploadspath.'/'.$attachname;
 	if (file_exists($filepath_org)) {
-		autorsz_fix_image_orientation($filepath_org);
+		$ret = autorsz_fix_image_orientation($filepath_org);
 		require_once MYBB_ROOT.'inc/functions_image.php';
 		$resized = generate_thumbnail($filepath_org, $uploadspath, $filename_rsz, $mybb->settings[$prefix.'max_height'], $mybb->settings[$prefix.'max_width']);
 		if ($resized['filename']) {
 			$filepath_rsz = $uploadspath.'/'.$resized['filename'];
 			if (!@rename($filepath_rsz, $filepath_org)) {
 				@unlink($filepath_rsz);
-			} else	$ret = filesize($filepath_org);
+			} else {
+				clearstatcache();
+				$ret = filesize($filepath_org);
+			}
 		}
 	}
 
 	return $ret;
+}
+
+// Version 1.0.3 of this plugin had a bug which sometimes caused the wrong file
+// size to be stored in the DB, resulting in the wrong size being sent to
+// browsers when viewing an image, causing display issues.
+//
+// Here, we correct for that historical bug.
+function autorsz_hookin__attachment_end() {
+	global $attachment, $uploadspath_abs, $db;
+
+	$true_size = filesize($uploadspath_abs."/".$attachment['attachname']);
+	if ($attachment['filesize'] != $true_size) {
+		$attachment['filesize'] = $true_size;
+		$fields = $attachment;
+		$aid = $attachment['aid'];
+		unset($fields['aid']);
+		$db->update_query('attachments', $fields, "aid='$aid'");
+	}
 }
