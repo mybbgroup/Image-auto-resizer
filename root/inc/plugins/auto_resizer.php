@@ -43,10 +43,10 @@ function auto_resizer_info() {
 		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
 		'author'        => 'Laird as a member of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/User-Laird',
-		'version'       => '1.0.4',
+		'version'       => '1.0.5',
 		// Constructed by converting each digit of 'version' above into two digits (zero-padded if necessary),
 		// then concatenating them, then removing any leading zero(es) to avoid the value being interpreted as octal.
-		'version_code'  => '10004',
+		'version_code'  => '10005',
 		'guid'          => '',
 		'codename'      => 'auto_resizer',
 		'compatibility' => '18*'
@@ -315,8 +315,8 @@ function autorsz_resize_file($attachname) {
 function autorsz_hookin__attachment_end() {
 	global $attachment, $uploadspath_abs, $db;
 
-	$true_size = filesize($uploadspath_abs."/".$attachment['attachname']);
-	if ($attachment['filesize'] != $true_size) {
+	$true_size = @filesize($uploadspath_abs.'/'.$attachment['attachname']);
+	if ($true_size !== false && $attachment['filesize'] != $true_size) {
 		$attachment['filesize'] = $true_size;
 		$fields = $attachment;
 		$aid = $attachment['aid'];
