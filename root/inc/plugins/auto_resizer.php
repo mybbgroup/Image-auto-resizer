@@ -211,7 +211,7 @@ function autorsz_hookin__upload_attachment_thumb_start($attacharray) {
 		$plugins_cache = $cache->read('plugins');
 	}
 	$active_plugins = $plugins_cache['active'];
-	if ($active_plugins && $active_plugins['auto_resizer']) {
+	if ($active_plugins && !empty($active_plugins['auto_resizer'])) {
 		$res = autorsz_resize_file($attacharray['attachname']);
 		if ($res !== false) {
 			$attacharray['filesize'] = $res;
