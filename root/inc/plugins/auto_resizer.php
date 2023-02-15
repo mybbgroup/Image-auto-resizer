@@ -293,7 +293,7 @@ function autorsz_resize_file($attachname) {
 		$ret = autorsz_fix_image_orientation($filepath_org);
 		require_once MYBB_ROOT.'inc/functions_image.php';
 		$resized = generate_thumbnail($filepath_org, $uploadspath, $filename_rsz, $mybb->settings[$prefix.'max_height'], $mybb->settings[$prefix.'max_width']);
-		if ($resized['filename']) {
+		if (!empty($resized['filename'])) {
 			$filepath_rsz = $uploadspath.'/'.$resized['filename'];
 			if (!@rename($filepath_rsz, $filepath_org)) {
 				@unlink($filepath_rsz);
