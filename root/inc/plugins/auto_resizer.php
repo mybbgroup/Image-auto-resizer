@@ -37,9 +37,13 @@ function auto_resizer_info() {
 
 	$query = $db->simple_select('settinggroups', 'gid', "name = '{$prefix}settings'", array('limit' => 1));
 	$gid   = $db->fetch_field($query, 'gid');
+	if ($gid) {
+		$open_link = $lang->sprintf($lang->autorsz_desc_settings_link_open, $gid);
+		$close_link = '</a>';
+	} else	$open_link = $close_link = '';
 	$ret = array(
 		'name'          => $lang->autorsz_name,
-		'description'   => $lang->sprintf($lang->autorsz_desc, $gid),
+		'description'   => $lang->sprintf($lang->autorsz_desc, $open_link, $close_link),
 		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
 		'author'        => 'Laird as a member of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/User-Laird',
