@@ -16,19 +16,27 @@ Image Auto-Resizer is a plugin for [MyBB](https://mybb.com/) 1.8. It auto-resize
 
    In a web browser, open the "Plugins" module in the ACP of your MyBB installation. You should see "Image Auto-Resizer" under "Inactive Plugins". Click "Install & Activate" next to it. You should then see the plugin listed under "Active Plugins" on the reloaded page.
 
+4. *Configure settings*.
+
+   Configure the plugin's settings via the ACP's "Settings" module.
+
 ## Upgrading
 
-1. *Deactivate*.
+1. *Uninstall*.
 
-   In a web browser, open the "Plugins" module in the ACP of your MyBB installation and click "Deactivate" beside the "Image Auto-Resizer" plugin.
+   In a web browser, take note of your current settings for this plugin in the ACP of your MyBB installation, then open the "Plugins" module and click "Uninstall" beside the "Image Auto-Resizer" plugin.
 
 2. *Download and Copy files*.
 
    As in steps one and two for installing above.
 
-3. *Reactivate*.
+3. *Reinstall*.
 
-   As for step one but clicking "Activate" rather than "Deactivate".
+   As for step three for installing above.
+
+4. *Restore and configure settings*.
+
+   Restore the settings you noted down in step one above, and configure any new settings.
 
 ## Resizing preexisting uploaded images
 
