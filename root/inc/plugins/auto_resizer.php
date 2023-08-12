@@ -22,6 +22,7 @@ if (!defined('IN_MYBB')) {
 }
 
 if (defined('IN_ADMINCP')) {
+	$plugins->add_hook('admin_config_plugins_activate_commit'   , 'autorsz_hookin__admin_config_plugins_activate_commit');
 	$plugins->add_hook('admin_tools_recount_rebuild'            , 'autorsz_hookin__admin_tools_recount_rebuild'            );
 	$plugins->add_hook('admin_tools_recount_rebuild_output_list', 'autorsz_hookin__admin_tools_recount_rebuild_output_list');
 } else {
@@ -30,20 +31,43 @@ if (defined('IN_ADMINCP')) {
 }
 
 function auto_resizer_info() {
-	global $lang, $db;
+	global $lang, $db, $plugins_cache, $admin_session;
 	$prefix = 'autorsz_';
 
 	$lang->load('auto_resizer');
 
+	$desc = $lang->autorsz_desc.PHP_EOL;
+	$litems = '';
+
+	if (!empty($plugins_cache) && !empty($plugins_cache['active']) && !empty($plugins_cache['active']['auto_resizer'])) {
+		if (!empty($admin_session['data']['autorsz_upgrade_success_info'])) {
+			$msg_upgrade = $admin_session['data']['autorsz_upgrade_success_info'];
+			$litems .= '<li style="list-style-image: url(styles/default/images/icons/success.png)"><div class="success">'.$msg_upgrade.'</div></li>'.PHP_EOL;
+			update_admin_session('autorsz_upgrade_success_info', '');
+		}
+
+		if (!function_exists('exif_read_data')) {
+			$litems .= '<li style="list-style-image: url(styles/default/images/icons/warning.png);">'.$lang->autorsz_desc_no_exif.'</li>'.PHP_EOL;
+		}
+
+		$gid = autorsz_get_gid();
+		if (!empty($gid)) {
+			$litems .= '<li style="list-style-image: url(styles/default/images/icons/custom.png)"><a href="index.php?module=config-settings&amp;action=change&amp;gid='.$gid.'">'.$lang->autorsz_desc_config_settings.'</a></li>'.PHP_EOL;
+		}
+
+		$litems .= '<li style="list-style-image: url(styles/default/images/icons/custom.png)">'.$lang->autorsz_desc_resize_existing.'</li>'.PHP_EOL;
+	}
+
+	if (!empty($litems)) {
+		$desc .= '<ul>'.PHP_EOL.$litems.'</ul>'.PHP_EOL;
+	}
+
 	$query = $db->simple_select('settinggroups', 'gid', "name = '{$prefix}settings'", array('limit' => 1));
 	$gid   = $db->fetch_field($query, 'gid');
-	if ($gid) {
-		$open_link = $lang->sprintf($lang->autorsz_desc_settings_link_open, $gid);
-		$close_link = '</a>';
-	} else	$open_link = $close_link = '';
+	if ($gid) {}
 	$ret = array(
 		'name'          => $lang->autorsz_name,
-		'description'   => $lang->sprintf($lang->autorsz_desc, $open_link, $close_link),
+		'description'   => $desc,
 		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
 		'author'        => 'Laird as a member of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/User-Laird',
@@ -53,35 +77,146 @@ function auto_resizer_info() {
 		'compatibility' => '18*'
 	);
 
-	if (!function_exists('exif_read_data')) {
-		$ret['description'] .= '<ul><li style="list-style-image: url(styles/default/images/icons/warning.png);">'.$lang->autorsz_no_exif.'</li></ul>';
-	}
-
 	return $ret;
 }
 
 function auto_resizer_install() {
-	autorsz_create_settings();
+	// We don't do anything here. Given that a plugin cannot be installed
+	// without being simultaneously activated, it is sufficient to call
+	// autorsz_install_or_upgrade() from autorsz_activate().
 }
 
 function auto_resizer_uninstall() {
+	global $cache;
+
 	autorsz_remove_settings();
+
+	// Remove the plugin's entry from the persistent cache.
+	$mybbgrp_plugins = $cache->read('mybbgrp_plugins');
+	unset($mybbgrp_plugins['codename']);
+	$cache->update('mybbgrp_plugins', $mybbgrp_plugins);
+}
+
+function auto_resizer_activate() {
+	global $lang, $autorsz_upgrd_msg;
+
+	$info         = auto_resizer_info();
+	$from_version = autorsz_get_installed_version();
+	$to_version   = $info['version'];
+	autorsz_install_or_upgrade($from_version, $to_version);
+	if ($from_version !== $to_version) {
+		autorsz_set_installed_version($to_version);
+		if ($from_version) {
+			$autorsz_upgrd_msg = $lang->sprintf($lang->autorsz_upgrade_success_hdr, $lang->autorsz_name, $to_version);
+			update_admin_session('autorsz_upgrade_success_info', $lang->sprintf($lang->autorsz_upgrade_success_info, $to_version));
+		}
+	}
 }
 
 function auto_resizer_is_installed() {
-	global $db;
-	$prefix = 'autorsz_';
-
-	$query = $db->simple_select('settinggroups', 'gid', "name = '{$prefix}settings'", array('limit' => 1));
-
-	return $db->fetch_field($query, 'gid') ? true : false;
+	return autorsz_get_gid() != false;
 }
 
 /**
- * Creates the plugin's settings. Assumes the settings do not already exist,
- * i.e., that they have already been deleted if they were preexisting.
+ * Performs all tasks required to install or upgrade this plugin.
+ *
+ * @param string $from_version The version, as a "PHP-standardized" version
+ *                             number string, from which we are upgrading, or
+ *                             false if we are installing rather than upgrading.
+ * @param string $to_version   The version, as a "PHP-standardized" version
+ *                             number string, to which we are upgrading or at
+ *                             which we are installing.
  */
-function autorsz_create_settings() {
+function autorsz_install_or_upgrade($from_version = null, $to_version = null) {
+	global $db;
+
+	if (empty($to_version)) {
+		$info = codename_info();
+		$to_version = $info['version'];
+	}
+
+	// Save any existing values for this plugin's settings.
+	$curr_setting_vals = array();
+	$gid = autorsz_get_gid();
+	if (!empty($gid)) {
+		$query = $db->simple_select('settings', 'value, name', "gid='{$gid}'");
+		while ($setting = $db->fetch_array($query)) {
+			$curr_setting_vals[$setting['name']] = $setting['value'];
+		}
+	}
+
+	// Now delete any existing settings...
+	autorsz_remove_settings();
+
+	// ...and then recreate them, retaining any saved values.
+	// We recreate settings so as to refresh any language strings that have
+	// been updated since last upgrade (or since installation).
+	autorsz_create_settings($curr_setting_vals);
+}
+
+/**
+ * Retrieves from the persistent cache the installed version of this plugin.
+ *
+ * @return string $version The installed version of this plugin as a "PHP-
+ *                         standardized" version number string, or false if the
+ *                         plugin is not yet installed (in that case, we are
+ *                         presumably in the process of doing so).
+ */
+function autorsz_get_installed_version() {
+	global $cache;
+
+	$mybbgrp_plugins = $cache->read('mybbgrp_plugins');
+
+	return !empty($mybbgrp_plugins['auto_resizer']['version'])
+	         ? $mybbgrp_plugins['auto_resizer']['version']
+	         : false;
+}
+
+/**
+ * Sets and stores to the persistent cache the installed version of this plugin.
+ *
+ * @param string $version This plugin's current version, as a "PHP-standardized"
+ *                        version number string.
+ */
+function autorsz_set_installed_version($version) {
+	global $cache;
+
+	$mybbgrp_plugins = $cache->read('mybbgrp_plugins');
+	if (!isset($mybbgrp_plugins['auto_resizer'])) {
+		$mybbgrp_plugins['auto_resizer'] = array();
+	}
+	$mybbgrp_plugins['auto_resizer']['version'] = $version;
+
+	$cache->update('mybbgrp_plugins', $mybbgrp_plugins);
+}
+
+/**
+ * Gets the gid of this plugin's setting group, if any.
+ *
+ * @return The gid or false if the setting group does not exist.
+ */
+function autorsz_get_gid() {
+	global $db;
+	$prefix = 'autorsz_';
+
+	$query = $db->simple_select('settinggroups', 'gid', "name = '{$prefix}settings'", array(
+		'order_by' => 'gid',
+		'order_dir' => 'DESC',
+		'limit' => 1
+	));
+
+	return $db->fetch_field($query, 'gid');
+}
+
+/**
+ * Creates this plugin's settings. Assumes that the settings do not already
+ * exist, i.e., that they have already been deleted if they were pre-existing.
+ *
+ * @param Array $curr_setting_vals The values of pre-existing settings, if any,
+ *                                 indexed by setting name WITH the `shortnm_`
+ *                                 prefix.
+ */
+function autorsz_create_settings($curr_setting_vals) {
 	global $db, $lang;
 	$prefix = 'autorsz_';
 
@@ -177,15 +312,17 @@ function autorsz_create_settings() {
 		),
 	);
 
-	// Insert each of the plugin's settings into the database.
+	// Insert each of this plugin's settings into the database, restoring
+	// pre-existing values where they have been provided.
 	$disporder = 1;
 	foreach ($settings as $name => $setting) {
+		$value = isset($curr_setting_vals[$prefix.$name]) ? $curr_setting_vals[$prefix.$name] : $setting['value'];
 		$insert_settings = array(
 			'name'        => $db->escape_string($prefix.$name),
 			'title'       => $db->escape_string($setting['title']),
 			'description' => $db->escape_string($setting['description']),
 			'optionscode' => $db->escape_string($setting['optionscode']),
-			'value'       => $db->escape_string($setting['value']),
+			'value'       => $db->escape_string($value),
 			'disporder'   => $disporder,
 			'gid'         => $gid,
 			'isdefault'   => 0
@@ -201,12 +338,32 @@ function autorsz_remove_settings() {
 	global $db;
 	$prefix = 'autorsz_';
 
-	$result = $db->simple_select('settinggroups', 'gid', "name = '{$prefix}settings'", array('limit' => 1));
-	$group = $db->fetch_array($result);
-	if (!empty($group['gid'])) {
-		$db->delete_query('settinggroups', "gid='{$group['gid']}'");
-		$db->delete_query('settings', "gid='{$group['gid']}'");
+	$rebuild = false;
+	$query = $db->simple_select('settinggroups', 'gid', "name = '{$prefix}settings'");
+	while ($gid = $db->fetch_field($query, 'gid')) {
+		$db->delete_query('settinggroups', "gid='{$gid}'");
+		$db->delete_query('settings', "gid='{$gid}'");
+		$rebuild = true;
+	}
+	if ($rebuild) {
 		rebuild_settings();
+	}
+}
+
+/**
+ * Assigns any value of this plugin's "upgrade success" message global variable
+ * (conditionally set in autorsz_activate()) to core's global $message
+ * variable, which core then displays at the top of the post-activation reload
+ * of the ACP Plugins page. With this, we effectively replace the default
+ * message "The selected plugin has been activated successfully." with our
+ * custom message "Image Auto-Resizer has been activated successfully and
+ * upgraded to version [x.y.z]."
+ */
+function autorsz_hookin__admin_config_plugins_activate_commit() {
+	global $message, $autorsz_upgrd_msg;
+
+	if (!empty($autorsz_upgrd_msg)) {
+		$message = $autorsz_upgrd_msg;
 	}
 }
 

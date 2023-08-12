@@ -2,11 +2,14 @@
 
 // For the plugin's panel on the ACP Plugins page.
 $l['autorsz_name'                    ] = 'Image Auto-Resizer';
-$l['autorsz_desc'                    ] = 'Automatically resizes uploaded images to fit within configurable width and height limits.<br /><br />After plugin installation followed by configuration of maximum width and height in its {1}settings{2}, preexisting uploaded images can be resized by clicking "Go" beside <em>Tools &amp; Maintenance</em> => <em><a href="index.php?module=tools-recount_rebuild">Recount &amp; Rebuild</a></em> => <em>Resize Uploaded Images</em> in the ACP.<br /><br /><em>Credits:</em> Inspired by <a href="https://community.mybb.com/user-119243.html">azalea4va</a> in the MyBB Community Forums thread <a href="https://community.mybb.com/thread-217961.html">Resize image attachments</a>. Suggested by <a href="https://community.mybb.com/user-84065.html">Eldenroot</a> after he read that thread.<br />';
+$l['autorsz_desc'                    ] = 'Automatically resizes uploaded images to fit within configurable width and height limits.';
+$l['autorsz_desc_resize_existing'    ] = 'Resize preexisting uploaded images: click "Go" beside <em>Tools &amp; Maintenance</em> » <em><a href="index.php?module=tools-recount_rebuild">Recount &amp; Rebuild</a></em> » <em>Resize Uploaded Images</em>.';
+$l['autorsz_desc_config_settings'    ] = 'Configure settings';
 $l['autorsz_desc_settings_link_open' ] = '<a href="index.php?module=config-settings&amp;action=change&amp;gid={1}">';
-
-// Warning message.
-$l['autorsz_no_exif'                 ] = 'The exif_read_data() function was not found. Some images might be rotated on resizing. The most likely solution to this problem is to enable PHP\'s <a href="https://www.php.net/manual/en/book.exif.php">exif</a> extension on your server.';
+$l['autorsz_desc_no_exif'            ] = 'The exif_read_data() function was not found. Some images might be rotated on resizing. The most likely solution to this problem is to enable PHP\'s <a href="https://www.php.net/manual/en/book.exif.php">exif</a> extension on your server.';
+$l['autorsz_desc_credits'            ] = '<em>Credits:</em> Inspired by <a href="https://community.mybb.com/user-119243.html">azalea4va</a> in the MyBB Community Forums thread <a href="https://community.mybb.com/thread-217961.html">Resize image attachments</a>. Suggested by <a href="https://community.mybb.com/user-84065.html">Eldenroot</a> after he read that thread.<br />';
+$l['autorsz_upgrade_success_hdr'     ] = '{1} has been activated successfully and upgraded to version {2}.';
+$l['autorsz_upgrade_success_info'    ] = 'Successfully upgraded to version {1}.';
 
 // For the plugin's settings in the ACP.
 $l['autorsz_settings_title'          ] = 'Image Auto-Resizer Settings';
