@@ -310,6 +310,18 @@ function autorsz_create_settings($curr_setting_vals) {
 			'optionscode' => 'yesno',
 			'value'       => '1'
 		),
+		'excluded_groups' => array(
+			'title'       => $lang->autorsz_setting_excluded_groups_title,
+			'description' => $lang->autorsz_setting_excluded_groups_desc,
+			'optionscode' => 'groupselect',
+			'value'       => ''
+		),
+		'excluded_forums' => array(
+			'title'       => $lang->autorsz_setting_excluded_forums_title,
+			'description' => $lang->autorsz_setting_excluded_forums_desc,
+			'optionscode' => 'forumselect',
+			'value'       => ''
+		),
 	);
 
 	// Insert each of this plugin's settings into the database, restoring
@@ -399,10 +411,29 @@ function autorsz_hookin__admin_tools_recount_rebuild() {
 			$query = $db->simple_select('attachments', 'COUNT(*) AS num_imgs');
 			$num_imgs = $db->fetch_field($query, 'num_imgs');
 
-			$query2 = $db->simple_select('attachments', 'aid, attachname, filename, filesize', '', array('order_by' => 'aid', 'order_dir' => 'ASC', 'limit_start' => $start, 'limit' => $per_page));
+			$query2 = $db->query(<<<EOF
+SELECT          aid, attachname, filename, filesize, a.uid, fid
+FROM            {$db->table_prefix}attachments a
+LEFT OUTER JOIN {$db->table_prefix}posts p
+ON              a.pid = p.pid
+ORDER BY        aid ASC
+LIMIT           $start, $per_page
+EOF
+			);
 			while ($row = $db->fetch_array($query2)) {
-				// Don't try to resize files that aren't images, or at least that are not images of a type that we *can* resize
-				if (in_array(get_extension($row['filename']), array('gif', 'png', 'jpg', 'jpeg', 'jpe'))) {
+				// Don't try to resize files that aren't images, or at least that
+				// are not images of a type that we *can* resize.
+				// Also, don't resize images that have been attached by members of
+				// excluded groups or in threads in excluded forums.
+				if (in_array(get_extension($row['filename']), array('gif', 'png', 'jpg', 'jpeg', 'jpe'))
+				    &&
+				    !is_member($mybb->settings[$prefix.'excluded_groups'], $row['uid'])
+				    &&
+				    !($mybb->settings[$prefix.'excluded_forums'] == -1
+				      ||
+				      in_array($row['fid'], explode(',', $mybb->settings[$prefix.'excluded_forums']))
+				     )
+				) {
 					$ret = autorsz_resize_file($row['attachname']);
 					if ($ret !== false && $ret != $row['filesize']) {
 						$db->update_query('attachments', array('filesize' => $ret), "aid='{$row['aid']}'");
@@ -426,13 +457,26 @@ function autorsz_hookin__admin_tools_recount_rebuild_output_list() {
 }
 
 function autorsz_hookin__upload_attachment_thumb_start($attacharray) {
-	global $plugins_cache, $cache;
+	global $plugins_cache, $cache, $mybb, $forum;
+	$prefix = 'autorsz_';
 
 	if (!is_array($plugins_cache)) {
 		$plugins_cache = $cache->read('plugins');
 	}
 	$active_plugins = !empty($plugins_cache['active']) ? $plugins_cache['active'] : [];
-	if ($active_plugins && !empty($active_plugins['auto_resizer'])) {
+	if ($active_plugins
+	    &&
+	    !empty($active_plugins['auto_resizer'])
+	    &&
+	    // Don't resize images that have been attached by members of excluded groups
+	    // or in threads in excluded forums.
+	    !is_member($mybb->settings[$prefix.'excluded_groups'], $attacharray['uid'])
+	    &&
+	    !($mybb->settings[$prefix.'excluded_forums'] == -1
+	      ||
+	      in_array($forum['fid'], explode(',', $mybb->settings[$prefix.'excluded_forums']))
+	     )
+	) {
 		$res = autorsz_resize_file($attacharray['attachname']);
 		if ($res !== false) {
 			$attacharray['filesize'] = $res;
