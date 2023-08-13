@@ -399,11 +399,14 @@ function autorsz_hookin__admin_tools_recount_rebuild() {
 			$query = $db->simple_select('attachments', 'COUNT(*) AS num_imgs');
 			$num_imgs = $db->fetch_field($query, 'num_imgs');
 
-			$query2 = $db->simple_select('attachments', 'aid, attachname, filesize', '', array('order_by' => 'aid', 'order_dir' => 'ASC', 'limit_start' => $start, 'limit' => $per_page));
+			$query2 = $db->simple_select('attachments', 'aid, attachname, filename, filesize', '', array('order_by' => 'aid', 'order_dir' => 'ASC', 'limit_start' => $start, 'limit' => $per_page));
 			while ($row = $db->fetch_array($query2)) {
-				$ret = autorsz_resize_file($row['attachname']);
-				if ($ret !== false && $ret != $row['filesize']) {
-					$db->update_query('attachments', array('filesize' => $ret), "aid='{$row['aid']}'");
+				// Don't try to resize files that aren't images, or at least that are not images of a type that we *can* resize
+				if (in_array(get_extension($row['filename']), array('gif', 'png', 'jpg', 'jpeg', 'jpe'))) {
+					$ret = autorsz_resize_file($row['attachname']);
+					if ($ret !== false && $ret != $row['filesize']) {
+						$db->update_query('attachments', array('filesize' => $ret), "aid='{$row['aid']}'");
+					}
 				}
 			}
 
