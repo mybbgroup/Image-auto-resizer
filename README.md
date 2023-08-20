@@ -2,6 +2,10 @@
 
 Image Auto-Resizer is a plugin for [MyBB](https://mybb.com/) 1.8. It auto-resizes uploaded images so that they do not exceed a stipulated maximum width and height.
 
+## Resource requirements
+
+Resizing large images can be memory-intensive, and because this plugin does not check for sufficient memory, you should ensure it yourself. A plugin user reported that a 32M [`memory_limit`](https://www.php.net/manual/en/ini.core.php#ini.memory-limit) setting was not sufficient to avoid out-of-memory errors, but that 128M (the default) was. That is a rough guide: the actual value will depend on what size images you have configured your MyBB site to accept in the first place.
+
 ## Installing
 
 1. *Download*.
