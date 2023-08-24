@@ -900,7 +900,6 @@ function autorsz_is_agif($filepath) {
 				fclose($fh);
 				return false;
 			}
-			$switch = ord($c) == 0xFF;
 			while (true) {
 				$c = fread($fh, 1);
 				if ($c === false) {
