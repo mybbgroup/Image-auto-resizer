@@ -42,11 +42,18 @@ $l['autorsz_setting_excluded_groups_title'] = 'Excluded groups';
 $l['autorsz_setting_excluded_groups_desc'] = 'The images attached by members of any groups selected here will <em>not</em> be resized (or altered in any way).';
 $l['autorsz_setting_excluded_forums_title'] = 'Excluded forums';
 $l['autorsz_setting_excluded_forums_desc'] = 'The images attached in threads in any forums selected here will <em>not</em> be resized (or altered in any way).';
+$l['autorsz_setting_watermark_filepath_title'] = 'Watermark file';
+$l['autorsz_setting_watermark_filepath_desc' ] = 'The path to a file containing an image to apply as a watermark to all uploaded images (except for animated images when they are not being converted to a static image). May be an absolute path, otherwise, relative paths are taken to be relative to the MyBB root directory. If this setting is empty, or the file does not exist, is unreadable, or is not a valid image, then no watermark is applied.';
+$l['autorsz_setting_watermark_valign_title'  ] = 'Watermark vertical alignment';
+$l['autorsz_setting_watermark_valign_desc'   ] = 'How to vertically align the watermark file within the watermarked image. (The watermark is resized horizontally to fit the width of the watermarked image).';
 $l['autorsz_policy_shrink_anim_if_fs_reduced'] = 'Shrink to fit, retaining animation, if filesize reduced (else: ignore)';
 $l['autorsz_policy_shrink_anim_uncond'       ] = 'Shrink to fit, retaining animation, regardless of resulting filesize';
 $l['autorsz_policy_shrink_static'            ] = 'Shrink to fit, converting to a static image';
 $l['autorsz_policy_static'                   ] = 'Convert to a static image without resizing';
 $l['autorsz_policy_ignore'                   ] = 'Ignore: leave as animated, at uploaded dimensions';
+$l['autorsz_setting_valign_top'              ] = 'Top';
+$l['autorsz_setting_valign_middle'           ] = 'Middle';
+$l['autorsz_setting_valign_bottom'           ] = 'Bottom';
 
 // For the recount and rebuild tool.
 $l['autorsz_rebuild_lbl'             ] = 'Resize Uploaded Images';
