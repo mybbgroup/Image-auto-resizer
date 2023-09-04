@@ -679,6 +679,11 @@ function autorsz_resize_file($attachname) {
 			$type          = ($type == IMAGETYPE_GIF ? 'gif' : ($type == IMAGETYPE_PNG ? 'png' : 'jpeg'));
 			$valign_set    = $mybb->settings[$prefix.'watermark_valign'];
 			$valign        = ($valign_set == 'bottom' ? AUTORSZ_WMK_VALIGN_BOTTOM : ($valign_set == 'middle' ? AUTORSZ_WMK_VALIGN_MIDDLE : AUTORSZ_WMK_VALIGN_TOP));
+			// It would be more efficient to combine this function's functionality with
+			// that of generate_thumbnail() above, so we don't have to open, manipulate,
+			// and save the image (file) twice, but generate_thumbnail() is a core
+			// function that we can't modify, and doing things this way, separately,
+			// avoids the need to duplicate its functionality.
 			$did_wmk       = autorsz_watermark($filepath_org, $type, $wmk_filepath, $wm_type, $save_filepath, $valign);
 			if ($did_wmk && file_exists($save_filepath)) {
 				copy($save_filepath, $filepath_org);
