@@ -334,6 +334,12 @@ function autorsz_create_settings($curr_setting_vals) {
 			'optionscode' => "radio\ntop={$lang->autorsz_setting_valign_top}\nmiddle={$lang->autorsz_setting_valign_middle}\nbottom={$lang->autorsz_setting_valign_bottom}",
 			'value'       => 'top',
 		),
+		'watermark_save_org' => array(
+			'title'       => $lang->autorsz_setting_watermark_save_org_title,
+			'description' => $lang->autorsz_setting_watermark_save_org_desc,
+			'optionscode' => 'yesno',
+			'value'       => '0',
+		),
 	);
 
 	// Insert each of this plugin's settings into the database, restoring
@@ -686,8 +692,10 @@ function autorsz_resize_file($attachname) {
 			// avoids the need to duplicate its functionality.
 			$did_wmk       = autorsz_watermark($filepath_org, $type, $wmk_filepath, $wm_type, $save_filepath, $valign);
 			if ($did_wmk && file_exists($save_filepath)) {
-				copy($save_filepath, $filepath_org);
-				unlink($save_filepath);
+				if ($mybb->settings[$prefix.'watermark_save_org'] == 1) {
+					rename($filepath_org, "{$filepath_org}.org.pre-wmk");
+				}
+				rename($save_filepath, $filepath_org);
 			} else	$did_wmk = false;
 		}
 
