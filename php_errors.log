@@ -1,4 +1,0 @@
-[03-Sep-2023 00:13:12 UTC] PHP Fatal error:  Uncaught Error: array_pop(): Argument #1 ($array) cannot be passed by reference in Command line code:1
-Stack trace:
-#0 {main}
-  thrown in Command line code on line 1
