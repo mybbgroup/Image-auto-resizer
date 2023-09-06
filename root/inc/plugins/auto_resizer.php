@@ -322,6 +322,24 @@ function autorsz_create_settings($curr_setting_vals) {
 			'optionscode' => 'forumselect',
 			'value'       => ''
 		),
+		'watermark_filepath' => array(
+			'title'       => $lang->autorsz_setting_watermark_filepath_title,
+			'description' => $lang->autorsz_setting_watermark_filepath_desc,
+			'optionscode' => 'text',
+			'value'       => ''
+		),
+		'watermark_valign' => array(
+			'title'       => $lang->autorsz_setting_watermark_valign_title,
+			'description' => $lang->autorsz_setting_watermark_valign_desc,
+			'optionscode' => "radio\ntop={$lang->autorsz_setting_valign_top}\nmiddle={$lang->autorsz_setting_valign_middle}\nbottom={$lang->autorsz_setting_valign_bottom}",
+			'value'       => 'top',
+		),
+		'watermark_save_org' => array(
+			'title'       => $lang->autorsz_setting_watermark_save_org_title,
+			'description' => $lang->autorsz_setting_watermark_save_org_desc,
+			'optionscode' => 'yesno',
+			'value'       => '0',
+		),
 	);
 
 	// Insert each of this plugin's settings into the database, restoring
@@ -556,7 +574,7 @@ function autorsz_resize_file($attachname) {
 	$filename_rsz = $attachname.'.resized';
 	$filepath_rsz = $uploadspath.'/'.$filename_rsz;
 	if (file_exists($filepath_org)) {
-		$atype = $fix_orientation = $do_static_shrink = false;
+		$atype = $fix_orientation = $did_shrink = $do_static_shrink = false;
 		if (autorsz_is_agif($filepath_org)) {
 			$atype = 'gif';
 		} else if (autorsz_is_apng($filepath_org)) {
@@ -614,7 +632,7 @@ function autorsz_resize_file($attachname) {
 				          ) {
 					@unlink($filepath_rsz);
 					return false;
-				} // else, we successfully resized an oversize animation
+				} else	$did_shrink = true;
 				break;
 			case 'shrink_static':
 				$do_static_shrink = true;
@@ -640,14 +658,48 @@ function autorsz_resize_file($attachname) {
 			}
 			require_once MYBB_ROOT.'inc/functions_image.php';
 			$resized = generate_thumbnail($filepath_org, $uploadspath, $filename_rsz, $max_height, $max_width);
-			if (!empty($resized['filename'])) {
+			$did_shrink = !empty($resized['filename']);
+			if ($did_shrink) {
 				$filepath_rsz = $uploadspath.'/'.$resized['filename'];
-			} else	return false;
+			}
 		}
 
-		if (!@rename($filepath_rsz, $filepath_org)) {
+		if ($did_shrink && !@rename($filepath_rsz, $filepath_org)) {
 			@unlink($filepath_rsz);
-		} else {
+		}
+
+		$did_wmk = false;
+		// Watermark the uploaded image if the preconditions are met
+		if (!empty($mybb->settings[$prefix.'watermark_filepath'])
+		    &&
+		    (!$atype || $do_static_shrink)
+		    &&
+		    in_array(($type = getimagesize($filepath_org)[2]), array(IMAGETYPE_GIF, IMAGETYPE_PNG, IMAGETYPE_JPEG))
+		    &&
+		    is_readable(($wmk_filepath = autorsz_mk_path_abs($mybb->settings[$prefix.'watermark_filepath'])))
+		    &&
+		    in_array(($wm_ext = get_extension($wmk_filepath)), array('gif', 'png', 'jpg', 'jpeg', 'jpe'))
+		) {
+			$save_filepath = "{$filepath_org}.wm";
+			$wm_type       = ($wm_ext == 'gif' ? 'gif' : ($wm_ext == 'png' ? 'png' : 'jpeg'));
+			$type          = ($type == IMAGETYPE_GIF ? 'gif' : ($type == IMAGETYPE_PNG ? 'png' : 'jpeg'));
+			$valign_set    = $mybb->settings[$prefix.'watermark_valign'];
+			$valign        = ($valign_set == 'bottom' ? AUTORSZ_WMK_VALIGN_BOTTOM : ($valign_set == 'middle' ? AUTORSZ_WMK_VALIGN_MIDDLE : AUTORSZ_WMK_VALIGN_TOP));
+			// It would be more efficient to combine this function's functionality with
+			// that of generate_thumbnail() above, so we don't have to open, manipulate,
+			// and save the image (file) twice, but generate_thumbnail() is a core
+			// function that we can't modify, and doing things this way, separately,
+			// avoids the need to duplicate its functionality.
+			$did_wmk       = autorsz_watermark($filepath_org, $type, $wmk_filepath, $wm_type, $save_filepath, $valign);
+			if ($did_wmk && file_exists($save_filepath)) {
+				if ($mybb->settings[$prefix.'watermark_save_org'] == 1) {
+					rename($filepath_org, "{$filepath_org}.org.pre-wmk");
+				}
+				rename($save_filepath, $filepath_org);
+			} else	$did_wmk = false;
+		}
+
+		if ($did_shrink || $did_wmk) {
 			clearstatcache();
 			$ret = filesize($filepath_org);
 		}
@@ -973,4 +1025,125 @@ function autorsz_is_agif($filepath) {
 	fclose($fh);
 	// Earlier returns possible
 	return $frame_count >= 2;
+}
+
+define('AUTORSZ_WMK_VALIGN_TOP'   , 1);
+define('AUTORSZ_WMK_VALIGN_MIDDLE', 2);
+define('AUTORSZ_WMK_VALIGN_BOTTOM', 3);
+/**
+ * Apply a watermark image to an original image.
+ * @param string $org_filepath The path to the file containing the image to which to apply the watermark.
+ * @param string $org_type The type of image at $org_filepath (one of jpeg, gif, and png).
+ * @param string $wmk_filepath The path to the file containing the watermark image to apply.
+ * @param string $wmk_type The type of image at $wmk_filepath (one of jpeg, gif, and png).
+ * @param string $save_filepath The path to the file to which to save the watermarked image.
+ * @param int $vert_align The vertical location to which to apply the watermark (the watermark
+ *                        is resized horizontally to fit the width of the original image).
+ *                        If not one of AUTORSZ_WMK_VALIGN_TOP, AUTORSZ_WMK_VALIGN_MIDDLE,
+ *                        AUTORSZ_WMK_VALIGN_BOTTOM, then top alignment (AUTORSZ_WMK_VALIGN_TOP)
+ *                        is assumed.
+ * @return boolean True if and only if the watermark was successfully applied, in which case
+ *                 $save_filepath references a valid file containing the watermarked image.
+ */
+function autorsz_watermark($org_filepath, $org_type, $wmk_filepath, $wmk_type, $save_filepath, $vert_align = AUTORSZ_WMK_VALIGN_TOP) {
+	// Load the stamp and the photo to apply the watermark to
+	$create_func = "imagecreatefrom{$org_type}";
+	$im = $create_func($org_filepath);
+	if ($im === false) {
+		return false;
+	}
+	$wmk_create_func = "imagecreatefrom{$wmk_type}";
+	$stamp = $wmk_create_func($wmk_filepath);
+
+	$imgw = imagesx($im);
+	$imgh = imagesy($im);
+	$stampw = imagesx($stamp);
+	$stamph = imagesy($stamp);
+
+	$new_width = $imgw;
+	$new_height = $stamph * $new_width / $stampw;
+	if ($new_height > $imgh) {
+		$new_height = $imgh;
+		$new_width = $stampw * $new_height / $stamph;
+	}
+	$destx = 0;
+	$desty = max(0, $vert_align == AUTORSZ_WMK_VALIGN_MIDDLE
+	           ? round($imgh/2) - round($new_height/2)
+		   : (
+		      $vert_align == AUTORSZ_WMK_VALIGN_BOTTOM
+		        ? $imgh - $new_height
+		        : 0
+		     )
+		 );
+
+	// The following code is heavily based on a StackOverflow answer,
+	// but I have lost track of which one, and can't seem to dredge it
+	// up by googling.
+
+	// Convert $im to truecolor
+	if (!imageistruecolor($im)) {
+		$original_transparency = imagecolortransparent($im);
+		// We have a transparent color
+		if ($original_transparency >= 0 && $original_transparency < imagecolorstotal($im)) {
+			// Get the actual transparent color
+			$rgb = imagecolorsforindex($im, $original_transparency);
+			$original_transparency = ($rgb['red'] << 16) | ($rgb['green'] << 8) | $rgb['blue'];
+			// Change the transparent color to black, since transparent goes to black anyways (no way to remove transparency in GIF)
+			$col_alloced = imagecolorallocate($im, 0, 0, 0);
+			if ($col_alloced !== false) {
+				imagecolortransparent($im, $col_alloced);
+			}
+		}
+		// Create truecolor image and transfer
+		$truecolor = imagecreatetruecolor($imgw, $imgh);
+		if ($truecolor !== false) {
+			imagealphablending($im, false);
+			imagesavealpha($im, true);
+			if (imagecopy($truecolor, $im, 0, 0, 0, 0, $imgw, $imgh)) {
+				imagedestroy($im);
+				$im = $truecolor;
+				// Remake transparency (if there was transparency)
+				if ($original_transparency >= 0 && $original_transparency < imagecolorstotal($truecolor)) {
+					imagealphablending($im, false);
+					imagesavealpha($im, true);
+					for ($x = 0; $x < $imgw; $x++) {
+						for ($y = 0; $y < $imgh; $y++) {
+							$colorat = imagecolorat($im, $x, $y);
+							if ($colorat !== false && $colorat == $original_transparency) {
+								imagesetpixel($im, $x, $y, 127 << 24);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	$success = imagecopyresampled($im, $stamp, $destx, $desty, 0, 0, $new_width, $new_height, $stampw, $stamph);
+	if ($success) {
+		imagealphablending($im, false);
+		imagesavealpha($im, true);
+		$image_func = "image{$org_type}";
+		$success = $image_func($im, $save_filepath);
+	}
+	imagedestroy($im);
+	imagedestroy($stamp);
+
+	// Earlier return possible
+	return $success;
+}
+
+// Handle the fact that older MyBB versions don't have the mk_path_abs() function.
+function autorsz_mk_path_abs($path) {
+	if (function_exists('mk_path_abs')) {
+		return mk_path_abs($path);
+	} else {
+		$iswin = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+		$char1 = my_substr($path, 0, 1);
+		if ($char1 != '/' && !($iswin && ($char1 == '\\' || preg_match('(^[a-zA-Z]:\\\\)', $path)))) {
+			$path = MYBB_ROOT.$path;
+		}
+
+		return $path;
+	}
 }
