@@ -564,11 +564,35 @@ function autorsz_fix_image_orientation($filepath) {
 	return $ret;
 }
 
-function autorsz_resize_file($attachname) {
-	global $mybb;
-	$prefix = 'autorsz_';
+/**
+ * Resizes and/or watermarks an image file according to this plugin's settings, all of which can be
+ * overridden. The image file is generally an attachment under the core uploads directory, but this
+ * directory too can be overridden (see below). On success, the file is overwritten.
+ *
+ * @param string $attachname The path to the image file relative to the path specified in MyBB
+ *                           core's `uploadspath` setting (which can be overridden - see below).
+ * @param array  $settings_overrides An array each key of which is either the name of one of this
+ *                                   plugin's applicable settings (but excluding the `autorsz_`
+ *                                   prefix) or `uploadspath`, (referencing the MyBB core setting).
+ *                                   Each value associated with a key is the corresponding value
+ *                                   to override the setting value with. If no key-value pair exists
+ *                                   for a setting then it is not overridden. Valid keys are all
+ *                                   those of the array assigned to `$settings` in
+ *                                   `autorsz_create_or_update_settings()` except for
+ *                                   'excluded_groups' and 'excluded_forums'.
+ *
+ * @return Mixed Boolean false if resizing and/or watermarking failed or were inapplicable,
+ *               otherwise an integer indicating the number of bytes in the resized file.
+ */
+function autorsz_resize_file($attachname, $settings_overrides = []) {
+	$fn_get_arg_val = function($arg_name, $omit_prefix = false) use ($settings_overrides) {
+		global $mybb;
+		$prefix = 'autorsz_';
 
-	$uploadspath = mk_path_abs($mybb->settings['uploadspath']);
+		return isset($settings_overrides[$arg_name]) ? $settings_overrides[$arg_name] : $mybb->settings[($omit_prefix ? '' : $prefix).$arg_name];
+	};
+
+	$uploadspath = mk_path_abs($fn_get_arg_val('uploadspath', /*$omit_prefix = */true));
 	$ret = false;
 	$filepath_org = $uploadspath.'/'.$attachname;
 	$filename_rsz = $attachname.'.resized';
@@ -582,16 +606,16 @@ function autorsz_resize_file($attachname) {
 		}
 		if (!$atype) {
 			$fix_orientation = $do_static_shrink = true;
-			$max_height = $mybb->settings[$prefix.'max_height'];
-			$max_width = $mybb->settings[$prefix.'max_width'];
+			$max_height = $fn_get_arg_val('max_height');
+			$max_width = $fn_get_arg_val('max_width');
 		} else {
-			$max_width = $mybb->settings[$prefix."max_a{$atype}_width"];
+			$max_width = $fn_get_arg_val("max_a{$atype}_width");
 			if (empty($max_width)) {
-				$max_width = $mybb->settings[$prefix.'max_width'];
+				$max_width = $fn_get_arg_val('max_width');
 			}
-			$max_height = $mybb->settings[$prefix."max_a{$atype}_height"];
+			$max_height = $fn_get_arg_val("max_a{$atype}_height");
 			if (empty($max_height)) {
-				$max_height = $mybb->settings[$prefix.'max_height'];
+				$max_height = $fn_get_arg_val('max_height');
 			}
 
 			// This call is slightly inefficient given that getimagesize()
@@ -609,7 +633,7 @@ function autorsz_resize_file($attachname) {
 			$sz_cmp = $is_oversize ? 'oversize' : 'withinsize';
 
 			// Determine the applicable policy setting out of the four possibilities.
-			$policy = $mybb->settings["{$prefix}{$sz_cmp}_a{$atype}_policy"];
+			$policy = $fn_get_arg_val("{$sz_cmp}_a{$atype}_policy");
 
 			// Implement that policy.
 			switch ($policy) {
@@ -622,7 +646,7 @@ function autorsz_resize_file($attachname) {
 					$filename_rsz .= '.apng';
 					$filepath_rsz = $uploadspath.'/'.$filename_rsz;
 				}
-				$coalesce_and_optimise = ($mybb->settings[$prefix.'coalesceandoptimise_a'.$atype] == 1);
+				$coalesce_and_optimise = ($fn_get_arg_val('coalesceandoptimise_a'.$atype) == 1);
 				$result = $rsz_func($filepath_org, $filepath_rsz, $max_height, $max_width, $coalesce_and_optimise);
 				if ($result <= 0) {
 					return false;
@@ -670,20 +694,20 @@ function autorsz_resize_file($attachname) {
 
 		$did_wmk = false;
 		// Watermark the uploaded image if the preconditions are met
-		if (!empty($mybb->settings[$prefix.'watermark_filepath'])
+		if (!empty($fn_get_arg_val('watermark_filepath'))
 		    &&
 		    (!$atype || $do_static_shrink)
 		    &&
 		    in_array(($type = getimagesize($filepath_org)[2]), array(IMAGETYPE_GIF, IMAGETYPE_PNG, IMAGETYPE_JPEG))
 		    &&
-		    is_readable(($wmk_filepath = autorsz_mk_path_abs($mybb->settings[$prefix.'watermark_filepath'])))
+		    is_readable(($wmk_filepath = autorsz_mk_path_abs($fn_get_arg_val('watermark_filepath'))))
 		    &&
 		    in_array(($wm_ext = get_extension($wmk_filepath)), array('gif', 'png', 'jpg', 'jpeg', 'jpe'))
 		) {
 			$save_filepath = "{$filepath_org}.wm";
 			$wm_type       = ($wm_ext == 'gif' ? 'gif' : ($wm_ext == 'png' ? 'png' : 'jpeg'));
 			$type          = ($type == IMAGETYPE_GIF ? 'gif' : ($type == IMAGETYPE_PNG ? 'png' : 'jpeg'));
-			$valign_set    = $mybb->settings[$prefix.'watermark_valign'];
+			$valign_set    = $fn_get_arg_val('watermark_valign');
 			$valign        = ($valign_set == 'bottom' ? AUTORSZ_WMK_VALIGN_BOTTOM : ($valign_set == 'middle' ? AUTORSZ_WMK_VALIGN_MIDDLE : AUTORSZ_WMK_VALIGN_TOP));
 			// It would be more efficient to combine this function's functionality with
 			// that of generate_thumbnail() above, so we don't have to open, manipulate,
@@ -692,7 +716,7 @@ function autorsz_resize_file($attachname) {
 			// avoids the need to duplicate its functionality.
 			$did_wmk       = autorsz_watermark($filepath_org, $type, $wmk_filepath, $wm_type, $save_filepath, $valign);
 			if ($did_wmk && file_exists($save_filepath)) {
-				if ($mybb->settings[$prefix.'watermark_save_org'] == 1) {
+				if ($fn_get_arg_val('watermark_save_org') == 1) {
 					rename($filepath_org, "{$filepath_org}.org.pre-wmk");
 				}
 				rename($save_filepath, $filepath_org);
