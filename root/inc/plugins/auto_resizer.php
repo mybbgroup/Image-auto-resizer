@@ -135,23 +135,8 @@ function autorsz_install_or_upgrade($from_version = null, $to_version = null) {
 		$to_version = $info['version'];
 	}
 
-	// Save any existing values for this plugin's settings.
-	$curr_setting_vals = array();
-	$gid = autorsz_get_gid();
-	if (!empty($gid)) {
-		$query = $db->simple_select('settings', 'value, name', "gid='{$gid}'");
-		while ($setting = $db->fetch_array($query)) {
-			$curr_setting_vals[$setting['name']] = $setting['value'];
-		}
-	}
-
-	// Now delete any existing settings...
-	autorsz_remove_settings();
-
-	// ...and then recreate them, retaining any saved values.
-	// We recreate settings so as to refresh any language strings that have
-	// been updated since last upgrade (or since installation).
-	autorsz_create_settings($curr_setting_vals);
+	// Create or update this plugin's settings.
+	autorsz_create_or_update_settings();
 }
 
 /**
@@ -209,34 +194,40 @@ function autorsz_get_gid() {
 }
 
 /**
- * Creates this plugin's settings. Assumes that the settings do not already
- * exist, i.e., that they have already been deleted if they were pre-existing.
- *
- * @param Array $curr_setting_vals The values of pre-existing settings, if any,
- *                                 indexed by setting name WITH the `shortnm_`
- *                                 prefix.
+ * Creates or updates this plugin's settings.
  */
-function autorsz_create_settings($curr_setting_vals) {
+function autorsz_create_or_update_settings() {
 	global $db, $lang;
 	$prefix = 'autorsz_';
 
 	$lang->load('auto_resizer');
 
-	$res = $db->query('SELECT MAX(disporder) as max_disporder FROM '.TABLE_PREFIX.'settinggroups');
-	$disporder = intval($db->fetch_field($res, 'max_disporder')) + 1;
-
-	// Insert the plugin's settings group into the database.
 	$setting_group = array(
 		'name'         => $prefix.'settings',
 		'title'        => $db->escape_string($lang->autorsz_settings_title),
 		'description'  => $db->escape_string($lang->autorsz_settings_desc),
-		'disporder'    => $disporder,
 		'isdefault'    => 0
 	);
-	$db->insert_query('settinggroups', $setting_group);
-	$gid = $db->insert_id();
+	$gid = autorsz_get_gid();
+	if (empty($gid)) {
+		// Insert the plugin's settings group into the database.
+		$query = $db->query('SELECT MAX(disporder) as max_disporder FROM '.TABLE_PREFIX.'settinggroups');
+		$setting_group['disporder'] = intval($db->fetch_field($query, 'max_disporder')) + 1;
+		$db->insert_query('settinggroups', $setting_group);
+		$gid = $db->insert_id();
+	} else {
+		// Update the plugin's settings group in the database.
+		$db->update_query('settinggroups', $setting_group, "gid='{$gid}'");
+	}
 
-	// Define the plugin's settings.
+	// Get the plugin's existing settings, if any.
+	$existing_settings = array();
+	$query = $db->simple_select('settings', 'name', "gid='{$gid}'");
+	while ($setting = $db->fetch_array($query)) {
+		$existing_settings[] = $setting['name'];
+	}
+
+	// Define the plugin's (new/updated) settings.
 	$settings = array(
 		'max_width' => array(
 			'title'       => $lang->autorsz_setting_max_width_title,
@@ -342,23 +333,42 @@ function autorsz_create_settings($curr_setting_vals) {
 		),
 	);
 
-	// Insert each of this plugin's settings into the database, restoring
-	// pre-existing values where they have been provided.
+	// Delete existing settings no longer present in the plugin's current version.
+	$new_settings = array_map(function($e) use ($prefix) {return $prefix.$e;}, array_keys($settings));
+	$to_delete = array_diff($existing_settings, $new_settings);
+	if ($to_delete) {
+		$names_esc_cs_qt = "'".implode("', '", array_map([$db, 'escape_string'], $to_delete))."'";
+		$db->delete_query('settings', "name IN ({$names_esc_cs_qt}) AND gid='{$gid}'");
+	}
+
+	// Insert into, or update in, the database each of this plugin's settings.
 	$disporder = 1;
+	$inserts = [];
 	foreach ($settings as $name => $setting) {
-		$value = isset($curr_setting_vals[$prefix.$name]) ? $curr_setting_vals[$prefix.$name] : $setting['value'];
-		$insert_settings = array(
+		$fields = array(
 			'name'        => $db->escape_string($prefix.$name),
 			'title'       => $db->escape_string($setting['title']),
 			'description' => $db->escape_string($setting['description']),
 			'optionscode' => $db->escape_string($setting['optionscode']),
-			'value'       => $db->escape_string($value),
+			'value'       => $db->escape_string($setting['value']),
 			'disporder'   => $disporder,
 			'gid'         => $gid,
 			'isdefault'   => 0
 		);
-		$db->insert_query('settings', $insert_settings);
+		if (in_array($prefix.$name, $existing_settings)) {
+			// Update the already-existing setting while retaining its value.
+			unset($fields['value']);
+			$db->update_query('settings', $fields, "name='{$prefix}{$name}' AND gid='{$gid}'");
+		} else {
+			// Queue the new setting for insertion.
+			$inserts[] = $fields;
+		}
 		$disporder++;
+	}
+
+	if ($inserts) {
+		// Insert the queued new settings.
+		$db->insert_query_multiple('settings', $inserts);
 	}
 
 	rebuild_settings();
