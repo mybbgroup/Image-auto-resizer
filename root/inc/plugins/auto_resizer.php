@@ -71,7 +71,7 @@ function auto_resizer_info() {
 		'website'       => 'https://mybb.group/Thread-Image-Auto-Resizer',
 		'author'        => 'Laird as a member of the unofficial MyBB Group',
 		'authorsite'    => 'https://mybb.group/User-Laird',
-		'version'       => '1.1.0-dev',
+		'version'       => '1.1.0',
 		'guid'          => '',
 		'codename'      => 'auto_resizer',
 		'compatibility' => '18*'
